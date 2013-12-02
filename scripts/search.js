@@ -1,6 +1,7 @@
-function loadAPIClientInterfaces() {
+// Once the api loads call enable the search box.
+function handleAPILoaded() {
   gapi.client.load('youtube', 'v3', function() {
-    handleAPILoaded();
+    $('#search-button').attr('disabled', false);
   });
 }
 

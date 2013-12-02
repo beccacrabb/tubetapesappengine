@@ -9,6 +9,10 @@ handlers:
   static_dir: scripts #local name
   secure: optional
 
+- url: /images
+  static_dir: images #local name
+  secure: optional
+
 - url: /.*
   script: app.app
   secure: optional

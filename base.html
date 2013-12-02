@@ -1,55 +1,253 @@
 <html>
-  <head>
-    <title>TubeTapes | Soundtrack your life.</title>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <!-- <script src="scripts/auth.js"></script> -->
-    <script src="scripts/search.js"></script>
-  </head>
-  <body>
-    <span id="signinButton">
-      <span
-        class="g-signin"
-        data-callback="signinCallback"
-        data-clientid="419832672927.apps.googleusercontent.com"
-        data-cookiepolicy="single_host_origin"
-        data-requestvisibleactions="http://schemas.google.com/AddActivity"
-        data-scope="https://www.googleapis.com/auth/plus.login
-                    https://www.googleapis.com/auth/youtube">
-      </span>
-    </span>
+<head>
+  <title>TubeTape | Soundtrack your life.</title>
+  <meta name="google-signin-clientid" content="419832672927.apps.googleusercontent.com" />
+  <meta name="google-signin-cookiepolicy" content="single_host_origin" />
+  <meta name="google-signin-scope"
+      content="https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/youtube" />
+  <meta name="google-signin-callback" content="signinCallback" />
+  <script type="text/javascript">
+  (function() {
+    var po = document.createElement('script');
+    po.type = 'text/javascript'; po.async = true;
+    po.src = 'https://plus.google.com/js/client:platform.js';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(po, s);
+  })();
+  </script>
+  <!-- JavaScript specific to this application that is not related to API
+     calls -->
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js" ></script>
+  <script src="scripts/spin.js"></script>
+<script type="text/javascript">
+/**
+ * Perform jQuery initialization and check to ensure that you updated your
+ * client ID.
+ */
+$(document).ready(function() {
+  if ($('[data-clientid="YOUR_CLIENT_ID"]').length > 0) {
+    alert('This sample requires your OAuth credentials (client ID) ' +
+        'from the Google APIs console:\n' +
+        '    https://code.google.com/apis/console/#:access\n\n' +
+        'Find and replace YOUR_CLIENT_ID with your client ID and ' +
+        'YOUR_CLIENT_SECRET with your client secret in the project sources.'
+    );
+  }
+});
 
-    <div>
-    {% block body %}
-    {% endblock %}
-    </div>
-    
-    <div id="buttons">
-      <label> <input id="query" value='cats' type="text"/><button id="search-button" disabled onclick="search()">Search</button></label>
-    </div>
-    <div id="search-container">
-    </div>
+/**
+ * Calls the helper method that handles the authentication flow.
+ *
+ * @param {Object} authResult An Object which contains the access token and
+ *   other authentication information.
+ */
+function signinCallback(authResult) {
+  if (authResult['status']['signed_in']) {
+    //gapi.client.load('plus','v1', fetchProfile);
+    //gapi.client.load('youtube','v3', search);
+    gapi.client.load('youtube','v3', youtubeAPILoaded);
+    console.log("Signed in.");
+  } else {
+    console.log("Signed out.");
+  }
+}
 
-     <!-- Place this asynchronous JavaScript just before your </body> tag -->
-    <script type="text/javascript">          
-      function signinCallback(authResult) {
-        if (authResult['status']['signed_in']) {
-          // Update the app to reflect a signed in user
-          // Hide the sign-in button now that the user is authorized, for example:
-          document.getElementById('signinButton').setAttribute('style', 'display: none');
+function youtubeAPILoaded() {
+  $('#search-button').attr('disabled', false);
+  // requestUserHistoryPlaylistId();
+}
 
-          //YT gapi call should go here
+// uploads playlist
+// var playlistId;
 
-        } else {
-          // Update the app to reflect a signed out user
-          console.log('Sign-in state: ' + authResult['error']);
-        }
+// function requestUserHistoryPlaylistId() {
+//   // https://developers.google.com/youtube/v3/docs/channels/list
+//   var request = gapi.client.youtube.channels.list({
+//     mine: true,
+//     part: 'contentDetails'
+//   });
+//   request.execute(function(response) {
+//     playlistId = response.result.items[0].contentDetails.relatedPlaylists.watchHistory;
+//     console.log(playlistId);
+//     requestVideoPlaylist(playlistId);
+//   });
+// }
+
+// var vidId, playlistItems;
+// // Retrieve a playist of videos.
+// function requestVideoPlaylist(playlistId) {
+//   var requestOptions = {
+//     playlistId: playlistId,
+//     part: 'snippet',
+//     maxResults: 20
+//   };
+//   var request = gapi.client.youtube.playlistItems.list(requestOptions);
+//   request.execute(function(response) {
+//     playlistItems = response.result.items;
+//     if (playlistItems) {
+//       vidId = playlistItems[0].snippet.resourceId.videoId;
+//       loadPlayerAPI();
+//       $.each(playlistItems, function(index, item) {
+//         //console.log(item.snippet);
+//       });
+//     } else {
+//       console.log('Sorry you have no uploaded videos');
+//     }
+//   });
+// }
+
+var playlistItems;
+// Search echonest for artists and create empty playlist
+function search() {
+  //var url = 'http://developer.echonest.com/api/v4/artist/search?api_key=AP6CJXAJGGONHY0QK&format=json&name=radiohead&results=1'
+  //var url = 'http://developer.echonest.com/api/v4/artist/top_hottt?api_key=AP6CJXAJGGONHY0QK&format=json&results=10&start=0&bucket=hotttnesss'
+  var q = $('#query').val();
+  var artists = q.split(/[\,]+/);
+  console.log(artists);
+  var player = $('#ytplayer');
+  player.css('display', 'none');
+  startSpinner();
+  var url = 'http://developer.echonest.com/api/v4/playlist/static?api_key=AP6CJXAJGGONHY0QK&format=json&results=50&type=artist-radio'
+  for (index in artists) {
+    url += '&artist=' + artists[index].trim();
+  }
+  $.getJSON(url, function(data) {
+    playlistItems = data.response.songs;
+    createPlaylist(playlistItems, artists);
+  })
+}
+
+// Some variables to remember state.
+var playlistId;
+
+// Create a private playlist.
+function createPlaylist(playlistItems, artists) {
+  var title = artists[0].trim();
+  for (var i = 1; i < artists.length - 1; i++) {
+    title += ', ' + artists[i].trim();
+  }
+  if (artists.length > 1) {
+    title += ', and ' + artists[artists.length - 1].trim();
+  }
+  var request = gapi.client.youtube.playlists.insert({
+    part: 'snippet,status',
+    resource: {
+      snippet: {
+        title: title + ' radio',
+        description: 'An autogenerated playlist from TubeTapes with ' + title + ' as seeds. Enjoy!'
+      },
+      status: {
+        privacyStatus: 'private'
       }
+    }
+  });
+  request.execute(function(response) {
+    var result = response.result;
+    if (result) {
+      populatePlaylist(result.id, 0);
+      playlistId = result.id;
+      embedPlaylist();
+    } else {
+      console.log('creating playlist failed');
+    }
+  });
+}
 
-      (function() {
-       var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
-       po.src = 'https://apis.google.com/js/client:plusone.js';
-       var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
-     })();
-    </script>
-  </body>
+function populatePlaylist(plid, index) {
+  if (index < playlistItems.length) {
+    var query = createYouTubeQuery(playlistItems[index]);
+    feelingLuckyYouTubeSearch(query, plid, index);
+  }
+  else {
+    refreshPlayerURL();
+  }
+  // for (index in songObjects) {
+  //   var query = createYouTubeQuery(songObjects[index]);
+  //   feelingLuckyYouTubeSearch(query, plid, index); 
+  // }
+}
+
+function createYouTubeQuery(songObject) {
+  return songObject.title + " " + songObject.artist_name;
+}
+
+function feelingLuckyYouTubeSearch(q, plid, index) {
+  var request = gapi.client.youtube.search.list({
+    q: q,
+    part: 'snippet'
+  });
+
+  request.execute(function(response) {
+    if (response.items) {
+      var vidid = response.items[0].id.videoId;
+      addVideoToPlaylist(vidid, plid, index);
+    }
+    else {
+      populatePlaylist(plid, index + 1);
+    }
+  });
+}
+
+//var playlistCounter = 0;
+function addVideoToPlaylist(vidid, plid, index) {
+  //index = playlistCounter;
+  //playlistCounter = playlistCounter + 1;
+  var details = {
+    videoId: vidid,
+    kind: 'youtube#video'
+  }
+  var request = gapi.client.youtube.playlistItems.insert({
+    part: 'snippet',
+    resource: {
+      snippet: {
+        playlistId: plid,
+        resourceId: details,
+        //position: index
+      }
+    }
+  });
+  request.execute(function(response) {
+    // if (response.snippet.position == 0) {
+    //   loadPlayerAPI();
+    // }
+    if (response.snippet) {
+      console.log(response.snippet.position, response.snippet.title);
+      populatePlaylist(plid, response.snippet.position + 1);
+    }
+    else {
+      populatePlaylist(plid, index);
+    }
+  });
+}
+
+function startSpinner() {
+  $("#spinner").css('display', 'inline');
+}
+
+function stopSpinner() {
+  $("#spinner").css('display', 'none');
+
+}
+
+</script>
+</head>
+<body>
+
+<h1>TubeTapes</h1>
+<h2>Soundtrack your life.</h2>
+<div class="g-signin"></div><br />
+<div>
+<p>Enter artists and we'll create a jammin' YouTube playlist for you.  Your playlist will play right here but you can also check out all of your playlists on <a href="https://www.youtube.com/view_all_playlists">YouTube</a>.</p>
+<input id="query" type="textfield" size='60'>
+<button id="search-button" onClick="search()" disabled>Play music</button>
+</div>
+<div id="spinner" style="display:none;">
+  <br><p>We're spinning up a mix for you right now.  Stay tuned for music goodness!</p>
+  <img src="images/spinner.gif"/>
+</div>
+
+{% block body %}
+{% endblock %}
+
+</body>
 </html>
